@@ -122,9 +122,14 @@ REPLACE="
 # Set what you want to display when installing your module
 
 print_modname() {
-  ui_print "*******************************"
-  ui_print "         Module name        "
-  ui_print "*******************************"
+  ui_print "***************************************"
+  ui_print "                 uHost                 "
+  ui_print "***************************************"
+  ui_print "Instructions:"
+  ui_print "  - Open terminal"
+  ui_print "  - Type su -c uhosts"
+  ui_print "  - Follow on-screen options; cheers!  "
+  ui_print "***************************************"
 }
 
 # Copy/extract your module files into $MODPATH in on_install.
@@ -145,6 +150,7 @@ on_install() {
 set_permissions() {
   # The following is the default rule, DO NOT remove
   set_perm_recursive $MODPATH 0 0 0755 0644
+  set_perm $MODPATH/system/bin/uhosts 0 0 0755 0755
 
   # Here are some examples:
   # set_perm_recursive  $MODPATH/system/lib       0     0       0755      0644

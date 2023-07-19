@@ -1,7 +1,7 @@
-id=Module_name_without_spaces
-name=Module name (can be with spaces)
-version=v1
+id=uHosts
+name=uHost
+version=v1.0
 versionCode=1
-author=@YourName
-description=.....
+author=deaddrabbit404@GitHub
+description=Block annoying ads, trackers and malware on your Android device
 support=
