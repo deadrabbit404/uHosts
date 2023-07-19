@@ -1,7 +1,7 @@
 # uHosts
 Block annoying ads, trackers and malware on your Android device
 
-![screenshot](https://raw.githubusercontent.com/deadrabbit404/uHosts/main/screenshot_1.png)
+![screenshot](screenshot_1.png)
 
 ### Description
 uHosts is a Magisk module and a tool to safeguard your device against most ads, trackers and malwares. It uses hosts file to redirect harmful traffics to 0.0.0.0. The hosts file variants used by uHosts come from the [1Hosts](https://o0.pages.dev) project which has a collection of hosts lists from various  reputable sources. Credits to [@badmojr](https://github.com/badmojr) for his amazing work.
