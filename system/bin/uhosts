@@ -1,207 +1,216 @@
 #!/system/bin/sh
-#
-# Declare constants
+
+# Directory where hosts file is located
 HOSTSDIR="/data/adb/modules/hosts/system/etc"
+
+# Path to hosts file
 HOSTSFILE="$HOSTSDIR/hosts"
 
-# Global variable that determines which variant to update
+# Variable for determining which variant to update
 ACTIVE_VARIANT=""
+
+# Set colors
+R="\e[1;31m"    # Red
+G="\e[1;32m"    # Green
+Y="\e[1;33m"    # Yellow
+N="\e[0m"       # No color
 
 show_banner () {
     clear
-    echo -e "\e[1;31m"
+    echo -e "$R"
     cat << 'EOF'
         _   _           _
        | | | |         | |
   _   _| |_| | ___  ___| |_ ___
  | | | |  _  |/ _ \/ __| __/ __|
  | |_| | | | | (_) \__ \ |_\__ \
-  \__,_\_| |_/\___/|___/\__|___/ v0.1
+  \__,_\_| |_/\___/|___/\__|___/ v0.2-rc1
 EOF
-echo -e "\e[1;33m  by: deadrabbit404@GitHub  \e[0m\n"
+echo -e "$Y  by: deadrabbit404@GitHub$N\n"
 }
 
 main_menu () {
     show_banner
     check_status
-	printf "\nSelect one of the options below\n\n"
-	printf "(Variants)\n"
-	printf "  [\e[1;33mm\e[0m] mini\n"
-	printf "  [\e[1;33ml\e[0m] Lite (recommended)\n"
-	printf "  [\e[1;33mp\e[0m] Pro\n"
-	printf "  [\e[1;33mx\e[0m] Xtra\n"
-	printf "\n(Other options)\n"
-	printf "  [\e[1;33mu\e[0m] Update current variant\n"
-	printf "  [\e[1;33ms\e[0m] Show description for each variant\n"
-	printf "  [\e[1;33mf\e[0m] Fallback to system default hosts\n"
-	printf "  [\e[1;33mr\e[0m] Reboot to apply changes\n"
-	printf "  [\e[1;33mq\e[0m] Quit\n"
+    echo -e "\nSelect one of the options below\n"
+    echo -e "(Variants)"
+    echo -e "  [${Y}m$N] mini"
+    echo -e "  [${Y}l$N] Lite (recommended)"
+    echo -e "  [${Y}p$N] Pro"
+    echo -e "  [${Y}x$N] Xtra"
+    echo -e "\n(Other options)"
+    echo -e "  [${Y}u$N] Update current variant"
+    echo -e "  [${Y}s$N] Show description for each variant"
+    echo -e "  [${Y}f$N] Fallback to system default hosts"
+    echo -e "  [${Y}r$N] Reboot to apply changes"
+    echo -e "  [${Y}q$N] Quit"
 }
 
 verify_systemless_hosts () {
 # Check if systemless host is enabled in Magisk
-    if [ ! -d "$HOSTSDIR" ]; then
-        printf "Systemless hosts is disabled.\n"
-	printf "  - Enable it via Magisk>Settings>Systemless hosts\n"
-	printf "  - Re-run the script\n"
-	exit 1
+    if [ ! -d "$HOSTSDIR" ]
+    then
+        echo -e "$R[×] Systemless hosts is disabled.$N"
+        echo -e "    - Enable it via Magisk>Settings>Systemless hosts"
+        echo -e "    - Reboot and re-run the script"
+        exit 1
     fi
 }
 
 check_status () {
 # Check if your device is using one of the variants
 # and print the active variant on the screen
-    variant=`head -1 $HOSTSFILE | grep 'Title:' | grep -oE '\([a-zA-Z]+\)' | grep -oE '[a-zA-Z]+'`
-    sleep 1
+    variant=`grep "Title:" $HOSTSFILE | awk -F'(' '{ print $2 }' | grep -oE '[a-zA-Z]+'`
+    sleep 0.5
+
     if [ -z "$variant" ]
     then
-	# Set ACTIVE_VARIANT to empty string
-	ACTIVE_VARIANT=""
-
-	# Interpolate with red color
-        variant="\e[1;31mN/A\e[0m"
-        printf "Status: \e[1;31mUnprotected\e[0m\n"
+        # Set ACTIVE_VARIANT to empty string
+        ACTIVE_VARIANT=""
+        # Interpolate with red color
+        variant="${R}N/A$N"
+        echo -e "Status: ${R}Unprotected$N"
 
     else
-	# Update ACTIVE_VARIANT global variable
-	ACTIVE_VARIANT=$variant
-
-	# Interpolate with light-green color
-        variant="\e[1;32m${variant}\e[0m"
-        printf "Status: \e[1;32mProtected\e[0m\n"
+        # Update ACTIVE_VARIANT
+        ACTIVE_VARIANT=$variant
+        # Interpolate with green color
+        variant="$G$variant$N"
+        echo -e "Status: ${G}Protected$N"
     fi
 
-    printf "Active variant: $variant\n"
-    sleep 1
+    echo -e "Active variant: $variant"
+    sleep 0.5
 }
 
 show_variants () {
 # Show description for each variant
     show_banner
-    printf "Available variants:\n\n"
-    printf "    \e[1;32mmini\e[0m - lenient; unblocks a number of ads & trackers for in-app rewards\n"
-    printf "    \e[1;32mLite\e[0m - balanced; doesn't hamper user experience (UX), recommended\n"
-    printf "    \e[1;32mPro\e[0m  - strict; prioritizes privacy & safety (adblocking) over UX\n"
-    printf "    \e[1;32mXtra\e[0m - extremely aggressive & restrictive\n"
-    printf "\nPress Enter to return to main menu "
+    echo -e "Available variants:\n"
+    echo -e "  ${G}mini$N - lenient; unblocks a number of ads & trackers for in-app rewards"
+    echo -e "  ${G}Lite$N - balanced; doesn't hamper user experience (UX), recommended"
+    echo -e "  ${G}Pro$N  - strict; prioritizes privacy & safety (adblocking) over UX"
+    echo -e "  ${G}Xtra$N - extremely aggressive & restrictive"
+    echo -e "\nPress Enter to return to main menu"
     read choice
 }
 
-download_variant () {
+download () {
 # Download chosen variant and set it as the hosts file
-    remote_file="https://o0.pages.dev/$1/hosts.txt"
+    rhost="o0.pages.dev"
+    remote_file="https://$rhost/$1/hosts.txt"
     show_banner
-    printf "Downloading $1 variant...\n\n"
-    sleep 1
-    wget $remote_file -O $HOSTSFILE
+    echo -e "Downloading $1 variant..."
+    sleep 0.5
+    wget --no-check-certificate $remote_file -O $HOSTSFILE
+
     if [ $? -eq 0 ]
     then
-	printf "\n\e[1;32mDownload complete\e[0m\n"
-	reboot_prompt
+        echo -e "\n${G}Download complete$N"
+        reboot_prompt
     else
-	printf "\n\e[1;31mDownload failed, try again\e[0m\n"
-	printf "Press Enter to return to main menu "
-	read choice
+        echo -e "\n${R}Download failed, try again$N\n"
+        echo -e "Press Enter to return to main menu "
+        read choice
     fi
-    
 }
 
-update_variant () {
+update () {
 # Update current hosts variant but only if there is one
     if [ ! -z "$ACTIVE_VARIANT" ]
     then
-	show_banner
-        printf "Updating hosts file...\n"
-	sleep 2
-	# Call the download_variant function
-        download_variant $ACTIVE_VARIANT
+        show_banner
+        echo -e "Updating hosts file..."
+        sleep 1
+        download $ACTIVE_VARIANT
     else
-	printf "\n\e[1;31mYou are not using any of the variants!\e[0m"
-	sleep 3
+        echo -e "\n${R}You are not using any of the variants!$N"
+        sleep 2
     fi
 }
 
 restore_default () {
 # Restore the default hosts file
     show_banner
-    printf "Reverting back to default hosts...\n"
-    sleep 2
-    printf "127.0.0.1\tlocalhost\n" > $HOSTSFILE
-    printf "::1\t\tip6-localhost\n" >> $HOSTSFILE
-    printf "Done\n"
+    echo -e "Reverting back to default hosts..."
+    sleep 1
+    echo -e "127.0.0.1\tlocalhost" > $HOSTSFILE
+    echo -e "::1\t\tip6-localhost" >> $HOSTSFILE
+    echo -e "Done"
     reboot_prompt
 }
 
 reboot_prompt () {
 # Ask the user to reboot
-    printf "\e[1;31mNote:\e[0m You need to reboot to apply changes\n"
-    printf "Do you want to reboot now? (y/n): "
+    echo -e "${R}Note:$N You need to reboot to apply changes"
+    echo -en "Do you want to reboot now? (y/n): "
     read choice
     case $choice in
-	y|Y)
-	    reboot_device
-	    ;;
+    [yY]|[Yy][Ee][Ss])
+        reboot_device
+        ;;
     esac
 }
 
 quit () {
 # Quit the program
-    printf "\e[1;31mNote:\e[0m Please reboot to apply any changes\n"
+    echo -e "${R}Note:$N Please reboot to apply any changes"
     exit 0
 }
 
 reboot_device () {
 # Show reboot notice before rebooting
-    printf "Rebooting in 3 seconds...\n"
+    echo -e  "Rebooting in 3 seconds..."
     sleep 3
     reboot
 }
 
-# Run only if root
+# Exit immediately if not root
 if [ `id -u` -ne 0 ]
 then
-    echo "You are not root!"
+    echo -e "${R}You are not root!$N"
     exit 1
 fi
 
 verify_systemless_hosts
+
 while true
 do
     main_menu
-    printf "\nSelect: "
+    echo -en "\nSelect: "
     read choice
 
     case $choice in
-	[mM])
-	    download_variant "mini"
-	    ;;
-	[lL])
-	    download_variant "Lite"
-	    ;;
-	[pP])
-	    download_variant "Pro"
-	    ;;
-	[xX])
-	    download_variant "Xtra"
-	    ;;
-	[fF])
-	    restore_default
-	    ;;
-	[sS])
+        [mM])
+            download "mini"
+            ;;
+        [lL])
+            download "Lite"
+            ;;
+        [pP])
+            download "Pro"
+            ;;
+        [xX])
+            download "Xtra"
+            ;;
+        [fF])
+            restore_default
+            ;;
+        [sS])
             show_variants
-	    ;;
-	[uU])
-	    update_variant
-	    ;;
+            ;;
+        [uU])
+            update
+            ;;
         [qQ])
-	    quit
-	    ;;
-	[rR])
-	    reboot_device
-	    ;;
-	*)
-	    printf "\e[1;31mAre you blind bruh?\e[0m"
-	    sleep 3
-	    ;;
+            quit
+	        ;;
+        [rR])
+            reboot_device
+            ;;
+        *)
+            echo -en "${R}Are you blind bruh?$N"
+            sleep 2
+            ;;
     esac
 done
