@@ -42,7 +42,6 @@ main_menu () {
     echo -e "  [${Y}u$N] Update current variant"
     echo -e "  [${Y}s$N] Show description for each variant"
     echo -e "  [${Y}f$N] Fallback to system default hosts"
-    echo -e "  [${Y}r$N] Reboot to apply changes"
     echo -e "  [${Y}q$N] Quit"
 }
 
@@ -107,12 +106,13 @@ download () {
     if [ $? -eq 0 ]
     then
         echo -e "\n${G}Download complete$N"
-        reboot_prompt
     else
-        echo -e "\n${R}Download failed, try again$N\n"
-        echo -e "Press Enter to return to main menu "
-        read choice
+        echo -e "\n${R}Error: Download failed!$N\n"
     fi
+
+    echo -e "Press Enter to return to main menu "
+    read choice
+
 }
 
 update () {
@@ -137,32 +137,6 @@ restore_default () {
     echo -e "127.0.0.1\tlocalhost" > $HOSTSFILE
     echo -e "::1\t\tip6-localhost" >> $HOSTSFILE
     echo -e "Done"
-    reboot_prompt
-}
-
-reboot_prompt () {
-# Ask the user to reboot
-    echo -e "${R}Note:$N You need to reboot to apply changes"
-    echo -en "Do you want to reboot now? (y/n): "
-    read choice
-    case $choice in
-    [yY]|[Yy][Ee][Ss])
-        reboot_device
-        ;;
-    esac
-}
-
-quit () {
-# Quit the program
-    echo -e "${R}Note:$N Please reboot to apply any changes"
-    exit 0
-}
-
-reboot_device () {
-# Show reboot notice before rebooting
-    echo -e  "Rebooting in 3 seconds..."
-    sleep 3
-    reboot
 }
 
 # Exit immediately if not root
@@ -203,11 +177,8 @@ do
             update
             ;;
         [qQ])
-            quit
+            exit 0
 	        ;;
-        [rR])
-            reboot_device
-            ;;
         *)
             echo -en "${R}Are you blind bruh?$N"
             sleep 2
