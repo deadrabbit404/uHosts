@@ -94,25 +94,41 @@ show_variants () {
     read choice
 }
 
+spinner () {
+# Show a spinning animation while a process is running
+    spin=('-' '\' '|' '/')
+    while kill -0 $1 2> /dev/null
+    do
+        for i in "${spin[@]}"
+        do
+            echo -ne "\r[$i] "
+            echo -ne "$2"
+            sleep 0.05
+        done
+    done
+    echo -ne "\r[+] $2\n"
+}
+
 download () {
 # Download chosen variant and set it as the hosts file
     rhost="o0.pages.dev"
     remote_file="https://$rhost/$1/hosts.txt"
     show_banner
-    echo -e "Downloading $1 variant..."
-    sleep 0.5
-    wget --no-check-certificate $remote_file -O $HOSTSFILE
+
+    wget -q --no-check-certificate $remote_file -O $HOSTSFILE > /dev/null 2>&1 &
+    pid=$!
+    spinner $pid "Downloading $Y$1$N variant"
+    wait $pid
 
     if [ $? -eq 0 ]
     then
-        echo -e "\n${G}Download complete$N"
+        echo -e "${G}[+] Download complete$N"
     else
-        echo -e "\n${R}Error: Download failed!$N\n"
+        echo -e "${R}[×] Download failed! Check your internet connection$N"
     fi
 
     echo -e "Press Enter to return to main menu "
     read choice
-
 }
 
 update () {
@@ -120,11 +136,11 @@ update () {
     if [ ! -z "$ACTIVE_VARIANT" ]
     then
         show_banner
-        echo -e "Updating hosts file..."
-        sleep 1
+        sleep 2 & pid=$!
+        spinner $pid "Updating hosts variant: $Y$ACTIVE_VARIANT$N"
         download $ACTIVE_VARIANT
     else
-        echo -e "\n${R}You are not using any of the variants!$N"
+        echo -e "\n${R}[×] You are not using any of the variants!$N"
         sleep 2
     fi
 }
@@ -132,11 +148,12 @@ update () {
 restore_default () {
 # Restore the default hosts file
     show_banner
-    echo -e "Reverting back to default hosts..."
-    sleep 1
+    sleep 1.5 & pid=$!
+    spinner $pid "Reverting back to default hosts"
     echo -e "127.0.0.1\tlocalhost" > $HOSTSFILE
     echo -e "::1\t\tip6-localhost" >> $HOSTSFILE
-    echo -e "Done"
+    echo -e "${G}[+] Done$N"
+    sleep 1
 }
 
 # Exit immediately if not root
