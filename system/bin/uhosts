@@ -49,6 +49,26 @@ main_menu () {
     echo -e "  [${Y}q$N] Quit"
 }
 
+quit_prompt () {
+    echo -e "--------------------------------"
+    echo -e "    ${Y}m$N: Main menu,    ${Y}q$N: Quit"
+    echo -e "--------------------------------"
+    echo -ne "Select: "
+    read choice
+    case $choice in
+        [Qq]|[Qq][Uu][Ii][Tt])
+            exit 0
+            ;;
+        [Mm]|[Mm][Aa][Ii][Nn])
+            # return to main menu
+            ;;
+        *)
+            echo -en "${R}n00b alert!$N"
+            sleep 1
+            ;;
+    esac
+}
+
 verify_systemless_hosts () {
 # Check if systemless host is enabled in Magisk
     if [ ! -d "$HOSTSDIR" ]
@@ -82,7 +102,7 @@ print_status () {
         ACTIVE_VARIANT=$variant
         echo -e "Status: ${G}Protected$N"
         echo -e "Active variant: $G$variant$N"
-        echo -e "Total block domains: ${G}$(count_block_domains)$N"
+        echo -e "Total blocked domains: ${G}$(count_block_domains)$N"
     fi
 
     sleep 0.5
@@ -132,19 +152,62 @@ download () {
     else
         echo -e "${R}[×] Download failed! Check your internet connection$N"
     fi
+    quit_prompt
 
-    echo -e "Press Enter to return to main menu "
-    read choice
+}
+
+check_conn () {
+# Check connectivity to remote host
+    wget -q --no-check-certificate --spider -T 3 $1 > /dev/null 2>&1 &
+    pid=$!
+    spinner $pid "Connecting to $1"
+    wait $pid
+}
+
+check_update () {
+# Check if the variant has a new update on remote host
+# return 1 if there is an update
+# return 0 if there is none
+    rhost=$1
+    variant=$2
+    rfile="https://$rhost/$variant/hosts.txt"
+    mtime_local=`grep "Last modified" $HOSTSFILE | awk '{ print $4 }'`
+    mtime_remote=`wget -O- -q --no-check-certificate $rfile 2> /dev/null | grep "Last modified" | awk '{ print $4 }'`
+    if [ "$mtime_local" = "$mtime_remote" ]
+    then
+        return 0
+    else
+        return 1
+    fi
 }
 
 update () {
 # Update current hosts variant but only if there is one
+    rhost="o0.pages.dev"
     if [ ! -z "$ACTIVE_VARIANT" ]
     then
         show_banner
-        sleep 2 & pid=$!
-        spinner $pid "Updating hosts variant: $Y$ACTIVE_VARIANT$N"
-        download $ACTIVE_VARIANT
+        check_conn $rhost
+        if [ $? -eq 0 ]
+        then
+            check_update $rhost $ACTIVE_VARIANT & pid=$!
+            spinner $pid "Checking updates for $Y$ACTIVE_VARIANT$N"
+            wait $pid
+
+            if [ $? -eq 0 ]
+            then
+                echo -e "${G}[+] Already the latest$N"
+                quit_prompt
+            else [ $? -eq 1 ]
+                echo -e "${G}[+] Update available$N"
+                sleep 1
+                download $ACTIVE_VARIANT
+            fi
+        else
+            echo -e "${R}[×] Unable to connect to $rhost$N"
+            echo -e "${R}[!] Check your internet connection$N"
+            quit_prompt
+        fi
     else
         echo -e "\n${R}[×] You are not using any of the variants!$N"
         sleep 2
@@ -154,7 +217,7 @@ update () {
 restore_default () {
 # Restore the default hosts file
     show_banner
-    sleep 1.5 & pid=$!
+    sleep 1 & pid=$!
     spinner $pid "Reverting back to default hosts"
     echo -e "127.0.0.1\tlocalhost" > $HOSTSFILE
     echo -e "::1\t\tip6-localhost" >> $HOSTSFILE
@@ -204,7 +267,7 @@ do
 	        ;;
         *)
             echo -en "${R}Are you blind bruh?$N"
-            sleep 2
+            sleep 1
             ;;
     esac
 done
