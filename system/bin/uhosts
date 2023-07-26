@@ -31,7 +31,7 @@ echo -e "$Y  by: deadrabbit404@GitHub$N\n"
 
 main_menu () {
     show_banner
-    check_status
+    print_status
     echo -e "\nSelect one of the options below\n"
     echo -e "(Variants)"
     echo -e "  [${Y}m$N] mini"
@@ -56,7 +56,11 @@ verify_systemless_hosts () {
     fi
 }
 
-check_status () {
+count_block_domains () {
+    grep -F "0.0.0.0" $HOSTSFILE | grep -cv "0\.0\.0\.0\$"
+}
+
+print_status () {
 # Check if your device is using one of the variants
 # and print the active variant on the screen
     variant=`grep "Title:" $HOSTSFILE | awk -F'(' '{ print $2 }' | grep -oE '[a-zA-Z]+'`
@@ -66,19 +70,17 @@ check_status () {
     then
         # Set ACTIVE_VARIANT to empty string
         ACTIVE_VARIANT=""
-        # Interpolate with red color
-        variant="${R}N/A$N"
         echo -e "Status: ${R}Unprotected$N"
+        echo -e "Active variant: ${R}N/A$N"
 
     else
         # Update ACTIVE_VARIANT
         ACTIVE_VARIANT=$variant
-        # Interpolate with green color
-        variant="$G$variant$N"
         echo -e "Status: ${G}Protected$N"
+        echo -e "Active variant: $G$variant$N"
+        echo -e "Total block domains: ${G}$(count_block_domains)$N"
     fi
 
-    echo -e "Active variant: $variant"
     sleep 0.5
 }
 
@@ -101,8 +103,8 @@ spinner () {
     do
         for i in "${spin[@]}"
         do
-            echo -ne "\r[$i] "
-            echo -ne "$2"
+            echo -ne "\r[$i] $2"
+            #echo -ne "$2"
             sleep 0.05
         done
     done
