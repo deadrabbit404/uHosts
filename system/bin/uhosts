@@ -209,7 +209,7 @@ update () {
             quit_prompt
         fi
     else
-        echo -e "\n${R}[×] You are not using any of the variants!$N"
+        echo -ne "\n${R}[!] Apply a variant first, you bozo!$N"
         sleep 2
     fi
 }
