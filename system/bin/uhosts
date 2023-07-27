@@ -50,19 +50,21 @@ main_menu () {
 }
 
 quit_prompt () {
-    echo -e "--------------------------------"
-    echo -e "    ${Y}m$N: Main menu,    ${Y}q$N: Quit"
-    echo -e "--------------------------------"
+    echo -e "--------------------------------------"
+    echo -e "    ${Y}<enter>$N: Main menu,    ${Y}q$N: Quit"
+    echo -e "--------------------------------------"
     echo -ne "Select: "
     read choice
     case $choice in
         [Qq]|[Qq][Uu][Ii][Tt])
             exit 0
             ;;
-        [Mm]|[Mm][Aa][Ii][Nn])
-            # return to main menu
+        "")
+            # return to main menu when enter key is press
             ;;
         *)
+            # print a funny message when a wrong key
+            # is press before returning main menu
             echo -en "${R}n00b alert!$N"
             sleep 1
             ;;
