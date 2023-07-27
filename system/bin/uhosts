@@ -152,7 +152,8 @@ download () {
     then
         echo -e "${G}[+] Download complete$N"
     else
-        echo -e "${R}[×] Download failed! Check your internet connection$N"
+        echo -e "${R}[×] Download failed!$N"
+        print_troubleshoot
     fi
     quit_prompt
 
@@ -207,13 +208,21 @@ update () {
             fi
         else
             echo -e "${R}[×] Unable to connect to $rhost$N"
-            echo -e "${R}[!] Check your internet connection$N"
+            print_troubleshoot
             quit_prompt
         fi
     else
         echo -ne "\n${R}[!] Apply a variant first, you bozo!$N"
         sleep 2
     fi
+}
+
+print_troubleshoot () {
+# Print a message suggesting the user for possible
+# solution for update and download error
+    echo -e "${Y}[!] Possible solutions:$N"
+    echo -e "  - Check your internet connection"
+    echo -e "  - Disable your other ad-blockers" 
 }
 
 restore_default () {
