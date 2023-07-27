@@ -128,7 +128,7 @@ print_modname() {
   ui_print "Instructions:"
   ui_print "  - Open terminal"
   ui_print "  - Type su -c uhosts"
-  ui_print "  - Follow on-screen options; cheers!  "
+  ui_print "  - Choose one from the menu; cheers!"
   ui_print "***************************************"
 }
 
