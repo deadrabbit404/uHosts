@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.2.1] - 2023-08-08
+
+### Fixed
+
+- Fixed `wget: Connection reset by peer` error when downloading/updating
+
 ## [v0.2.0] - 2023-07-27
 
 ### Added
