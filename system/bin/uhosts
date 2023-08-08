@@ -6,6 +6,9 @@ HOSTSDIR="/data/adb/modules/hosts/system/etc"
 # Path to hosts file
 HOSTSFILE="$HOSTSDIR/hosts"
 
+# User-agent to be used by wget
+USER_AGENT="Mozilla/5.0 (Android 10; Mobile; rv:101.0) Gecko/101.0 Firefox/101.0"
+
 # Variable for determining which variant to update
 ACTIVE_VARIANT=""
 
@@ -28,7 +31,7 @@ show_banner () {
   _   _| |_| | ___  ___| |_ ___
  | | | |  _  |/ _ \/ __| __/ __|
  | |_| | | | | (_) \__ \ |_\__ \
-  \__,_\_| |_/\___/|___/\__|___/ v0.2
+  \__,_\_| |_/\___/|___/\__|___/ v0.2.1
 EOF
 echo -e "$Y  by: deadrabbit404@GitHub$N\n"
 }
@@ -143,7 +146,7 @@ download () {
     remote_file="https://$rhost/$1/hosts.txt"
     show_banner
 
-    wget -q --no-check-certificate $remote_file -O $HOSTSFILE > /dev/null 2>&1 &
+    wget -q -U "$USER_AGENT" --no-check-certificate $remote_file -O $HOSTSFILE > /dev/null 2>&1 &
     pid=$!
     spinner $pid "Downloading $Y$1$N variant"
     wait $pid
@@ -161,7 +164,7 @@ download () {
 
 check_conn () {
 # Check connectivity to remote host
-    wget -q --no-check-certificate --spider -T 3 $1 > /dev/null 2>&1 &
+    wget -q -U "$USER_AGENT" --no-check-certificate --spider -T 3 $1 > /dev/null 2>&1 &
     pid=$!
     spinner $pid "Connecting to $1"
     wait $pid
@@ -175,7 +178,7 @@ check_update () {
     variant=$2
     rfile="https://$rhost/$variant/hosts.txt"
     mtime_local=`grep "Last modified" $HOSTSFILE | awk '{ print $4 }'`
-    mtime_remote=`wget -O- -q --no-check-certificate $rfile 2> /dev/null | grep "Last modified" | awk '{ print $4 }'`
+    mtime_remote=`wget -O- -q -U "$USER_AGENT" --no-check-certificate $rfile 2> /dev/null | grep "Last modified" | awk '{ print $4 }'`
     if [ "$mtime_local" = "$mtime_remote" ]
     then
         return 0
