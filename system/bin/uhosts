@@ -6,6 +6,13 @@ HOSTSDIR="/data/adb/modules/hosts/system/etc"
 # Path to hosts file
 HOSTSFILE="$HOSTSDIR/hosts"
 
+# uHost directory for blacklist/whitelist
+UHOSTSDIR="/sdcard/uHosts"
+mkdir -p $UHOSTSDIR
+
+# Config file
+CONFIG="$UHOSTSDIR/uhosts.conf"
+
 # User-agent to be used by wget
 USER_AGENT="Mozilla/5.0 (Android 10; Mobile; rv:101.0) Gecko/101.0 Firefox/101.0"
 
@@ -36,19 +43,28 @@ EOF
 echo -e "$Y  by: deadrabbit404@GitHub$N\n"
 }
 
+init () {
+# initialize config file
+    if [ ! -f $CONFIG ]
+    then
+        echo "blacklist_enabled=false" >> $CONFIG
+    fi
+}
+
 main_menu () {
     show_banner
     print_status
     echo -e "\nSelect one of the options below\n"
-    echo -e "(Variants)"
+    echo -e "(hosts variants)"
     echo -e "  [${Y}m$N] mini"
     echo -e "  [${Y}l$N] Lite (recommended)"
     echo -e "  [${Y}p$N] Pro"
     echo -e "  [${Y}x$N] Xtra"
     echo -e "\n(Other options)"
-    echo -e "  [${Y}u$N] Update current variant"
-    echo -e "  [${Y}s$N] Show description for each variant"
+    echo -e "  [${Y}u$N] Update hosts"
+    echo -e "  [${Y}s$N] Show description for each hosts variant"
     echo -e "  [${Y}f$N] Fallback to system default hosts"
+    echo -e "  [${Y}b$N] Configure blacklist"
     echo -e "  [${Y}q$N] Quit"
 }
 
@@ -121,7 +137,7 @@ show_variants () {
     echo -e "  ${G}Lite$N - balanced; doesn't hamper user experience (UX), recommended"
     echo -e "  ${G}Pro$N  - strict; prioritizes privacy & safety (adblocking) over UX"
     echo -e "  ${G}Xtra$N - extremely aggressive & restrictive"
-    echo -e "\nPress Enter to return to main menu"
+    echo -e "\nPress <enter> to return"
     read choice
 }
 
@@ -154,6 +170,25 @@ download () {
     if [ $? -eq 0 ]
     then
         echo -e "${G}[+] Download complete$N"
+        sleep 0.5
+        blacklist="$UHOSTSDIR/blacklist"
+        blacklist_status=`get_blacklist_status`
+        if [[ -s $blacklist && $blacklist_status = true ]]
+        then 
+            echo -en "${G}[+] Blacklist found!$N"
+            sleep 0.2
+            echo -n "\nDo you want to apply blacklist? (Y/n): "
+            read choice
+
+            case $choice in
+                ""|[Yy]|[Yy][Ee][Ss])
+                    apply_blacklist
+                    ;;
+                *)
+                    set_blacklist_status "false"
+                    ;;
+            esac
+        fi
     else
         echo -e "${R}[×] Download failed!$N"
         print_troubleshoot
@@ -235,9 +270,254 @@ restore_default () {
     spinner $pid "Reverting back to default hosts"
     echo -e "127.0.0.1\tlocalhost" > $HOSTSFILE
     echo -e "::1\t\tip6-localhost" >> $HOSTSFILE
+    set_blacklist_status "false"
     echo -e "${G}[+] Done$N"
     sleep 1
 }
+
+add_blacklist () {
+# Add domain to blacklist
+    blacklist=$UHOSTSDIR/blacklist
+    touch $blacklist
+
+    while true
+    do
+        clear
+        sleep 0.2
+        echo "Enter a domain to be added in blacklist:"
+        echo -n "(enter blank line to cancel)\n> "
+        read domain
+
+        if [ -z "$domain" ]
+        then
+            break
+        fi
+
+        # Check validity of domain
+        if echo "$domain" | grep '://' >/dev/null
+        then
+            domain=`echo "$domain" | awk -F'://' '{ print $2 }'`
+        fi
+        if echo "$domain" | ! grep -E "^(([a-zA-Z0-9](-?[a-zA-Z0-9])*)\.)+[a-zA-Z]{2,}$" >/dev/null
+        then
+            echo -e "${R}[×] Invalid domain:$N '$Y$domain$N'"
+            sleep 1
+            clear
+            continue
+        fi
+
+        if grep "^$domain\$" $blacklist >/dev/null
+        then
+            echo -en "\n$Y$domain$N - ${R}already in the blacklist$N"
+        else
+            echo $domain >> $blacklist
+            echo -en "\n$Y$domain$N - ${G}added to the blacklist$N"
+        fi
+
+        sleep 0.5
+        echo -en "\n\nAdd another domain to blacklist? (Y/n): "
+        read choice
+
+        case $choice in
+            ""|[Yy]|[Yy][Ee][Ss])
+                clear
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+}
+
+apply_blacklist () {
+# Add blacklist to hosts
+    blacklist="$UHOSTSDIR/blacklist"
+    temp="$UHOSTSDIR/temp"
+
+    clear
+    if [ -s $blacklist ]
+    then
+        sleep 0.5 & pid=$!
+        spinner $pid "Blacklisting domains"
+        wait $pid
+        cat $blacklist | while read domain || [[ -n $domain ]]
+        do
+            if grep " $domain\$" $HOSTSFILE >/dev/null 2>&1
+            then
+                echo "  • $domain - ${Y}already blacklisted$N"
+                continue
+            fi
+            
+            if grep '# Blacklist' $HOSTSFILE >/dev/null
+            then
+                sed "/# Blacklist/a 0.0.0.0 $domain" $HOSTSFILE > $temp
+                mv $temp $HOSTSFILE
+            else
+                if [ -z "`tail -1 $HOSTSFILE`" >/dev/null ]
+                then
+                    echo "# Blacklist" >> $HOSTSFILE
+                else
+                    echo "\n# Blacklist" >> $HOSTSFILE
+                fi
+                echo "0.0.0.0 $domain" >> $HOSTSFILE
+            fi
+            echo -e "  • $domain - ${G}blacklisted$N"
+        done
+        set_blacklist_status "true"
+    else
+        echo -en "${R}[×] Blacklist not found or is empty!$N"
+    fi
+    sleep 1.2
+}
+
+disable_blacklist () {
+# Remove blacklisted domains from hosts
+    clear
+    blacklist="$UHOSTSDIR/blacklist"
+
+    #if ! grep '# Blacklist' $HOSTSFILE >/dev/null 2>&1
+    #then
+    #    echo -en "${Y}[+] Blacklist already disabled$N"
+    #    sleep 0.8
+    #    return
+    #fi
+
+    temp="$UHOSTSDIR/temp"
+    touch $temp
+
+    blacklist_status=`grep "blacklist_enabled" $CONFIG | cut -f 2 -d'='`
+
+    if [ $blacklist_status = false ]
+    then
+        echo -en "${Y}[+] Blacklist already disabled$N"
+        sleep 0.8
+        return
+    fi
+
+    sleep 0.8 & pid=$!
+    spinner $pid "Disabling blacklist"
+    sed "/# Blacklist/,/^\s*\$/d" $HOSTSFILE > $temp
+    mv $temp $HOSTSFILE
+    wait $pid
+    # truncate trailing blank line
+    while [ -z "`tail -1 $HOSTSFILE`" >/dev/null ]
+    do
+        sed '${/^\s*$/d}' $HOSTSFILE > $temp
+        mv $temp $HOSTSFILE
+    done
+
+    set_blacklist_status "false"
+
+    echo "${G}[+] Done$N"
+    sleep 1
+}
+
+purge_blacklist () {
+# Remove blacklisted domains from hosts and also empty blacklist file
+    blacklist="UHOSTSDIR/blacklist"
+    clear
+    sleep 0.8 & pid=$!
+    spinner $pid "Purging blacklist"
+    disable_blacklist
+    sleep 0.8 & pid=$!
+    clear
+    spinner $pid "Emptying blacklist file"
+    > $blacklist
+    echo "${G}[+] Done$N"
+    sleep 1
+}
+
+show_blacklist () {
+# Print contents of blacklist
+    clear
+    blacklist="$UHOSTSDIR/blacklist"
+    if [ ! -s $blacklist ]
+    then
+        echo -e "${R}Blacklist is empty$N"
+        sleep 1
+        return
+    fi
+    cat $blacklist
+    echo -n "\nPress <enter> to return"
+    read choice
+}
+
+print_blacklist_status () {
+    clear
+    status=`get_blacklist_status`
+    if [ $status = true ]
+    then
+        echo -e "Blacklist is: ${G}ENABLED$N"
+    else
+        echo -e "Blacklist is: ${R}DISABLED$N"
+    fi
+    sleep 1.5
+}
+
+get_blacklist_status () {
+    grep "blacklist_enabled" $CONFIG | cut -f 2 -d'='
+}
+
+set_blacklist_status () {
+    sed -i "s/\(blacklist_enabled\)=.*/\1=$1/" $CONFIG
+}
+
+blacklist_menu () {
+    clear
+    sleep 0.8
+    echo "(Blacklist Options)\n"
+    echo -e "  [${Y}a$N] Add domains to the blacklist"
+    echo -e "  [${Y}e$N] Enable and apply blacklist"
+    echo -e "  [${Y}l$N] List the contents of blacklist"
+    echo -e "  [${Y}s$N] Show blacklist status"
+    echo -e "  [${Y}d$N] Disable blacklist (remove blacklisted domains from hosts)"
+    echo -e "  [${Y}p$N] Purge (disable blacklist and also empty the blacklist file)"
+    echo -e "  [${Y}r$N] Return to main menu"
+    echo -e "  [${Y}q$N] Quit"
+    echo -en "\nSelect: "
+}
+
+configure_blacklist () {
+    while true
+    do
+        clear
+        blacklist_menu
+        read choice
+        case $choice in
+            [Aa])
+                add_blacklist
+                ;;
+            [Ee])
+                apply_blacklist
+                ;;
+            [Ll])
+                show_blacklist
+                ;;
+            [Ss])
+                print_blacklist_status
+                ;;
+            [Dd])
+                disable_blacklist
+                ;;
+            [Pp])
+                purge_blacklist
+                ;;
+            [Rr])
+                break
+                ;;
+            [Qq])
+                exit 0
+                ;;
+            "")
+                continue
+                ;;
+            *)
+                echo "${R}That's not in the option, pinhead!$N"
+                sleep 1
+        esac
+    done
+}
+
 
 # Exit immediately if not root
 if [ `id -u` -ne 0 ]
@@ -247,6 +527,7 @@ then
 fi
 
 verify_systemless_hosts
+init
 
 while true
 do
@@ -279,6 +560,9 @@ do
         [qQ])
             exit 0
 	        ;;
+        [bB])
+            configure_blacklist
+            ;;
         *)
             echo -en "${R}Are you blind bruh?$N"
             sleep 1
