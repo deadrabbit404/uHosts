@@ -123,7 +123,7 @@ print_status () {
         ACTIVE_VARIANT=$variant
         echo -e "Status: ${G}Protected$N"
         echo -e "Active variant: $G$variant$N"
-        echo -e "Total blocked domains: ${G}$(count_block_domains)$N"
+        echo -e "Blocked: ${G}$(count_block_domains)$N domains"
     fi
 
     sleep 0.5
@@ -131,7 +131,7 @@ print_status () {
 
 show_variants () {
 # Show description for each variant
-    show_banner
+    clear
     echo -e "Available variants:\n"
     echo -e "  ${G}mini$N - lenient; unblocks a number of ads & trackers for in-app rewards"
     echo -e "  ${G}Lite$N - balanced; doesn't hamper user experience (UX), recommended"
@@ -149,19 +149,16 @@ spinner () {
         for i in "${spin[@]}"
         do
             echo -ne "\r[$i] $2"
-            #echo -ne "$2"
             sleep 0.05
         done
     done
-    echo -ne "\r[+] $2\n"
+    echo -e "\r[+] $2"
 }
 
 download () {
 # Download chosen variant and set it as the hosts file
     rhost="o0.pages.dev"
     remote_file="https://$rhost/$1/hosts.txt"
-    show_banner
-
     wget -q -U "$USER_AGENT" --no-check-certificate $remote_file -O $HOSTSFILE > /dev/null 2>&1 &
     pid=$!
     spinner $pid "Downloading $Y$1$N variant"
@@ -227,7 +224,7 @@ update () {
     rhost="o0.pages.dev"
     if [ ! -z "$ACTIVE_VARIANT" ]
     then
-        show_banner
+        clear
         check_conn $rhost
         if [ $? -eq 0 ]
         then
@@ -265,7 +262,7 @@ print_troubleshoot () {
 
 restore_default () {
 # Restore the default hosts file
-    show_banner
+    clear
     sleep 1 & pid=$!
     spinner $pid "Reverting back to default hosts"
     echo -e "127.0.0.1\tlocalhost" > $HOSTSFILE
@@ -372,7 +369,6 @@ apply_blacklist () {
 
 disable_blacklist () {
 # Remove blacklisted domains from hosts
-    clear
     blacklist="$UHOSTSDIR/blacklist"
 
     #if ! grep '# Blacklist' $HOSTSFILE >/dev/null 2>&1
@@ -389,7 +385,7 @@ disable_blacklist () {
 
     if [ $blacklist_status = false ]
     then
-        echo -en "${Y}[+] Blacklist already disabled$N"
+        echo -e "${Y}[+] Blacklist already disabled$N"
         sleep 0.8
         return
     fi
@@ -419,8 +415,9 @@ purge_blacklist () {
     sleep 0.8 & pid=$!
     spinner $pid "Purging blacklist"
     disable_blacklist
+    wait $pid
     sleep 0.8 & pid=$!
-    clear
+    #clear
     spinner $pid "Emptying blacklist file"
     > $blacklist
     echo "${G}[+] Done$N"
@@ -497,6 +494,7 @@ configure_blacklist () {
                 print_blacklist_status
                 ;;
             [Dd])
+                clear
                 disable_blacklist
                 ;;
             [Pp])
@@ -537,15 +535,19 @@ do
 
     case $choice in
         [mM])
+            clear
             download "mini"
             ;;
         [lL])
+            clear
             download "Lite"
             ;;
         [pP])
+            clear
             download "Pro"
             ;;
         [xX])
+            clear
             download "Xtra"
             ;;
         [fF])
