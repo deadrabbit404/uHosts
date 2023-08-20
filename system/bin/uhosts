@@ -468,7 +468,7 @@ blacklist_menu () {
     echo -e "  [${Y}l$N] List the contents of blacklist"
     echo -e "  [${Y}s$N] Show blacklist status"
     echo -e "  [${Y}d$N] Disable blacklist (remove blacklisted domains from hosts)"
-    echo -e "  [${Y}p$N] Purge (disable blacklist and also empty the blacklist file)"
+    echo -e "  [${Y}p$N] Purge (disable blacklist and empty the blacklist file)"
     echo -e "  [${Y}r$N] Return to main menu"
     echo -e "  [${Y}q$N] Quit"
     echo -en "\nSelect: "
