@@ -184,10 +184,7 @@ download () {
         whitelist="$UHOSTSDIR/whitelist"
         if [[ -s $whitelist && `get_whitelist_status` = true ]]
         then 
-            echo -e "${G}[+] Whitelist found$N"
-            sleep 0.2
-            sleep 1 & pid=$!
-            spinner $pid "Automatically re-applying"
+            echo -e "${G}[+] Whitelist found:$N Automatically re-applying"
             apply_whitelist
         fi
 
