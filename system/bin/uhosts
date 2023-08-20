@@ -526,7 +526,7 @@ whitelist_menu () {
     echo -e "  [${Y}l$N] List the contents of whitelist"
     echo -e "  [${Y}s$N] Show whitelist status"
     echo -e "  [${Y}d$N] Disable whitelist (re-block whitelisted domains)"
-    echo -e "  [${Y}p$N] Purge (disable whitelist and also empty the whitelist file)"
+    echo -e "  [${Y}p$N] Purge (disable whitelist and empty the whitelist file)"
     echo -e "  [${Y}r$N] Return to main menu"
     echo -e "  [${Y}q$N] Quit"
     echo -en "\nSelect: "
