@@ -67,6 +67,8 @@ main_menu () {
     echo -e "  [${Y}f$N] Fallback to system default hosts"
     echo -e "  [${Y}b$N] Configure blacklist"
     echo -e "  [${Y}w$N] Configure whitelist"
+    echo -e "  [${Y}bk$N] Backup hosts"
+    echo -e "  [${Y}rs$N] Restore hosts from backup"
     echo -e "  [${Y}q$N] Quit"
 }
 
@@ -751,6 +753,47 @@ set_whitelist_status () {
     sed -i "s/\(whitelist_enabled\)=.*/\1=$1/" $CONFIG
 }
 
+backup_hosts () {
+# Backup current hosts and config
+    hostsbak="hosts.bak"
+    config="uhosts.conf"
+    backupfile="hosts-backup.tar.gz"
+
+    sleep 1 && cd $UHOSTSDIR && cp $HOSTSFILE $hostsbak \
+        && tar -zcf $backupfile $hostsbak $config && rm -rf $hostsbak & pid=$!
+    spinner $pid "Creating backup"
+    if [ $? -eq 0 ]
+    then
+        echo -e "${G}[+] Done$N"
+    else
+        echo -e "${R}[×] Backup failed$N"
+    fi
+    sleep 1
+}
+
+restore_hosts () {
+# Restore backed-up hosts and config
+    backupfile="hosts-backup.tar.gz"
+    hostsbak="hosts.bak"
+
+    if [ -s "$UHOSTSDIR/$backupfile" ]
+    then
+        sleep 1 && cd $UHOSTSDIR && tar -zxf $backupfile \
+            && mv $hostsbak $HOSTSFILE & pid=$!
+        spinner $pid "Restoring hosts"
+        wait $pid
+        if [ $? -eq 0 ]
+        then
+            echo -e "${G}[+] Done$N"
+        else
+            echo -e "${R}[×] Restore failed$N"
+        fi
+    else
+        echo -e "${R}[×] Backup file not found$N"
+    fi
+    sleep 1
+}
+
 # Exit immediately if not root
 if [ `id -u` -ne 0 ]
 then
@@ -801,6 +844,14 @@ do
             ;;
         [wW])
             configure_whitelist
+            ;;
+        [bB][kK])
+            clear
+            backup_hosts
+            ;;
+        [Rr][Ss])
+            clear
+            restore_hosts
             ;;
         *)
             echo -en "${R}Are you blind bruh?$N"
