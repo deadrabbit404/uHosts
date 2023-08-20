@@ -45,9 +45,10 @@ echo -e "$Y  by: deadrabbit404@GitHub$N\n"
 
 init () {
 # initialize config file
-    if [ ! -f $CONFIG ]
+    if [ ! -s $CONFIG ]
     then
         echo "blacklist_enabled=false" >> $CONFIG
+        echo "whitelist_enabled=false" >> $CONFIG
     fi
 }
 
@@ -65,6 +66,7 @@ main_menu () {
     echo -e "  [${Y}s$N] Show description for each hosts variant"
     echo -e "  [${Y}f$N] Fallback to system default hosts"
     echo -e "  [${Y}b$N] Configure blacklist"
+    echo -e "  [${Y}w$N] Configure whitelist"
     echo -e "  [${Y}q$N] Quit"
 }
 
@@ -169,23 +171,26 @@ download () {
         echo -e "${G}[+] Download complete$N"
         sleep 0.5
         blacklist="$UHOSTSDIR/blacklist"
-        blacklist_status=`get_blacklist_status`
-        if [[ -s $blacklist && $blacklist_status = true ]]
+        if [[ -s $blacklist && `get_blacklist_status` = true ]]
         then 
-            echo -en "${G}[+] Blacklist found!$N"
+            echo -e "${G}[+] Blacklist found$N"
             sleep 0.2
-            echo -n "\nDo you want to apply blacklist? (Y/n): "
-            read choice
-
-            case $choice in
-                ""|[Yy]|[Yy][Ee][Ss])
-                    apply_blacklist
-                    ;;
-                *)
-                    set_blacklist_status "false"
-                    ;;
-            esac
+            sleep 1 & pid=$!
+            spinner $pid "Automatically re-applying"
+            apply_blacklist
         fi
+
+        sleep 0.5
+        whitelist="$UHOSTSDIR/whitelist"
+        if [[ -s $whitelist && `get_whitelist_status` = true ]]
+        then 
+            echo -e "${G}[+] Whitelist found$N"
+            sleep 0.2
+            sleep 1 & pid=$!
+            spinner $pid "Automatically re-applying"
+            apply_whitelist
+        fi
+
     else
         echo -e "${R}[×] Download failed!$N"
         print_troubleshoot
@@ -267,7 +272,12 @@ restore_default () {
     spinner $pid "Reverting back to default hosts"
     echo -e "127.0.0.1\tlocalhost" > $HOSTSFILE
     echo -e "::1\t\tip6-localhost" >> $HOSTSFILE
-    set_blacklist_status "false"
+    set_blacklist_status "false" & pid=$!
+    spinner $pid "Disabling blacklist"
+    wait $pid
+    set_whitelist_status "false" & pid=$!
+    spinner $pid "Disabling whitelist"
+    wait $pid
     echo -e "${G}[+] Done$N"
     sleep 1
 }
@@ -331,7 +341,6 @@ apply_blacklist () {
     blacklist="$UHOSTSDIR/blacklist"
     temp="$UHOSTSDIR/temp"
 
-    clear
     if [ -s $blacklist ]
     then
         sleep 0.5 & pid=$!
@@ -341,7 +350,7 @@ apply_blacklist () {
         do
             if grep " $domain\$" $HOSTSFILE >/dev/null 2>&1
             then
-                echo "  • $domain - ${Y}already blacklisted$N"
+                echo "  • $Y$domain$N - Already blacklisted"
                 continue
             fi
             
@@ -358,32 +367,23 @@ apply_blacklist () {
                 fi
                 echo "0.0.0.0 $domain" >> $HOSTSFILE
             fi
-            echo -e "  • $domain - ${G}blacklisted$N"
+            echo -e "  • $G$domain$N - Blacklisted"
         done
         set_blacklist_status "true"
     else
         echo -en "${R}[×] Blacklist not found or is empty!$N"
     fi
-    sleep 1.2
+    sleep 1
 }
 
 disable_blacklist () {
 # Remove blacklisted domains from hosts
     blacklist="$UHOSTSDIR/blacklist"
 
-    #if ! grep '# Blacklist' $HOSTSFILE >/dev/null 2>&1
-    #then
-    #    echo -en "${Y}[+] Blacklist already disabled$N"
-    #    sleep 0.8
-    #    return
-    #fi
-
     temp="$UHOSTSDIR/temp"
     touch $temp
 
-    blacklist_status=`grep "blacklist_enabled" $CONFIG | cut -f 2 -d'='`
-
-    if [ $blacklist_status = false ]
+    if [ "`get_blacklist_status`" = false ]
     then
         echo -e "${Y}[+] Blacklist already disabled$N"
         sleep 0.8
@@ -485,6 +485,7 @@ configure_blacklist () {
                 add_blacklist
                 ;;
             [Ee])
+                clear
                 apply_blacklist
                 ;;
             [Ll])
@@ -516,6 +517,245 @@ configure_blacklist () {
     done
 }
 
+whitelist_menu () {
+    clear
+    sleep 0.8
+    echo "(Whitelist Options)\n"
+    echo -e "  [${Y}a$N] Add domains to the whitelist"
+    echo -e "  [${Y}e$N] Enable and apply whitelist"
+    echo -e "  [${Y}l$N] List the contents of whitelist"
+    echo -e "  [${Y}s$N] Show whitelist status"
+    echo -e "  [${Y}d$N] Disable whitelist (re-block whitelisted domains)"
+    echo -e "  [${Y}p$N] Purge (disable whitelist and also empty the whitelist file)"
+    echo -e "  [${Y}r$N] Return to main menu"
+    echo -e "  [${Y}q$N] Quit"
+    echo -en "\nSelect: "
+}
+
+configure_whitelist () {
+    while true
+    do
+        clear
+        whitelist_menu
+        read choice
+        case $choice in
+            [Aa])
+                add_whitelist
+                ;;
+            [Ee])
+                clear
+                apply_whitelist
+                ;;
+            [Ll])
+                show_whitelist
+                ;;
+            [Ss])
+                print_whitelist_status
+                ;;
+            [Dd])
+                clear
+                disable_whitelist
+                ;;
+            [Pp])
+                purge_whitelist
+                ;;
+            [Rr])
+                break
+                ;;
+            [Qq])
+                exit 0
+                ;;
+            "")
+                continue
+                ;;
+            *)
+                echo -e "${R}That's not in the options, pinhead!$N"
+                sleep 1
+                ;;
+        esac
+    done        
+}
+
+add_whitelist () {
+# Add domains to whitelist
+    whitelist=$UHOSTSDIR/whitelist
+    if [ ! -f $whitelist ]
+    then
+        touch $whitelist
+    fi
+
+    clear
+    while true
+    do
+        sleep 0.2
+        echo "Enter a domain to be excluded from blocking:"
+        echo -n "(enter blank line to cancel)\n> "
+        read domain
+
+        if [ -z "$domain" ]
+        then
+            break
+        fi
+
+        # Check validity of domain
+        if echo "$domain" | grep '://' >/dev/null
+        then
+            domain=`echo "$domain" | awk -F'://' '{ print $2 }'`
+        fi
+        if echo "$domain" | ! grep -E "^(([a-zA-Z0-9](-?[a-zA-Z0-9])*)\.)+[a-zA-Z]{2,}$" >/dev/null
+        then
+            echo -e "${R}[×] Invalid domain:$N '$Y$domain$N'"
+            sleep 1
+            clear
+            continue
+        fi
+
+        if grep "^$domain\$" $whitelist >/dev/null
+        then
+            echo -en "\n$Y$domain$N - ${R}already in the whitelist$N"
+        else
+            echo $domain >> $whitelist
+            echo -en "\n$Y$domain$N - ${G}added to the whitelist$N"
+        fi
+
+        sleep 0.5
+        echo -en "\n\nAdd another domain to whitelist? (Y/n): "
+        read choice
+
+        case $choice in
+            ""|[Yy]|[Yy][Ee][Ss])
+                clear
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+}
+
+apply_whitelist () {
+    whitelist="$UHOSTSDIR/whitelist"
+    temp="$UHOSTSDIR/temp"
+
+    if [ ! -s $whitelist ]
+    then
+        echo -e "${R}[×] Whitelist not found or is empty!$N"
+        sleep 1
+        return
+    fi
+
+    sleep 1 & pid=$!
+    spinner $pid "Applying whitelist"
+    wait $pid
+    sleep 1 & pid=$!
+    spinner $pid "Unblocking domains in the whitelist"
+    cat "$whitelist" | while read domain || [[ -n $domain ]]
+    do
+        if grep -E "^0.0.0.0 $domain\$" $HOSTSFILE >/dev/null
+        then
+            sed "s/^\(0.0.0.0 $domain\$\)/#\1/g" $HOSTSFILE > $temp
+            mv $temp $HOSTSFILE
+            echo -e "  • $G$domain$N - Unblocked"
+        elif grep -E "^#0.0.0.0 $domain\$" $HOSTSFILE >/dev/null
+        then
+            echo -e "  • $Y$domain$N - Already unblocked"
+        else
+            echo -e "  • $Y$domain$N - Unblocked by default; skipping"
+        fi
+    done
+    set_whitelist_status "true"
+    sleep 1
+}
+
+disable_whitelist () {
+# Re-block whitelisted domains
+    whitelist="$UHOSTSDIR/whitelist"
+
+    temp="$UHOSTSDIR/temp"
+    touch $temp
+
+    if [ "`get_whitelist_status`" = false ]
+    then
+        echo -e "${Y}[+] Whitelist already disabled$N"
+        sleep 0.8
+        return
+    fi
+
+    sleep 0.8 & pid=$!
+    spinner $pid "Disabling whitelist"
+    sleep 0.8 & pid=$!
+    spinner $pid "Re-blocking whitelisted domains"
+    cat $whitelist | while read domain || [[ -n $domain ]]
+    do
+        if grep "^#0.0.0.0 $domain\$" $HOSTSFILE >/dev/null
+        then
+            sed -e "s/#\(0.0.0.0 $domain\$\)/\1/g" $HOSTSFILE > $temp
+            mv $temp $HOSTSFILE
+            echo -e "  • $domain - ${G}Blocked$N"
+        elif grep "^0.0.0.0 $domain\$" $HOSTSFILE >/dev/null
+        then
+            echo -e "  • $domain - ${Y}Already blocked$N"
+        else
+            echo -e "  • $domain - ${Y}Not whitelisted; skipping$N"
+        fi
+    done
+
+    set_whitelist_status "false"
+
+    echo "${G}[+] Done$N"
+    sleep 1
+}
+
+purge_whitelist () {
+# Re-block whitelisted domains and also empty whitelist file
+    whitelist="$UHOSTSDIR/whitelist"
+    clear
+    sleep 0.8 & pid=$!
+    spinner $pid "Purging whitelist"
+    disable_whitelist
+    wait $pid
+    sleep 0.8 & pid=$!
+    spinner $pid "Emptying whitelist file"
+    > $whitelist
+    echo "${G}[+] Done$N"
+    sleep 1
+}
+
+show_whitelist () {
+# Print contents of whitelist
+    clear
+    whitelist="$UHOSTSDIR/whitelist"
+    if [ ! -s $whitelist ]
+    then
+        echo -e "${R}Whitelist is empty$N"
+        sleep 1
+        return
+    fi
+    cat $whitelist
+    echo -n "\nPress <enter> to return"
+    read choice
+}
+
+
+print_whitelist_status () {
+    clear
+    status=`get_whitelist_status`
+    if [ $status = true ]
+    then
+        echo -e "Whitelist is: ${G}ENABLED$N"
+    else
+        echo -e "Whitelist is: ${R}DISABLED$N"
+    fi
+    sleep 1.5
+}
+
+get_whitelist_status () {
+    grep "whitelist_enabled" $CONFIG | cut -f 2 -d'='
+}
+
+set_whitelist_status () {
+    sed -i "s/\(whitelist_enabled\)=.*/\1=$1/" $CONFIG
+}
 
 # Exit immediately if not root
 if [ `id -u` -ne 0 ]
@@ -564,6 +804,9 @@ do
 	        ;;
         [bB])
             configure_blacklist
+            ;;
+        [wW])
+            configure_whitelist
             ;;
         *)
             echo -en "${R}Are you blind bruh?$N"
