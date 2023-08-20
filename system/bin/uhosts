@@ -173,10 +173,7 @@ download () {
         blacklist="$UHOSTSDIR/blacklist"
         if [[ -s $blacklist && `get_blacklist_status` = true ]]
         then 
-            echo -e "${G}[+] Blacklist found$N"
-            sleep 0.2
-            sleep 1 & pid=$!
-            spinner $pid "Automatically re-applying"
+            echo -e "${G}[+] Blacklist found:$N Automatically re-applying"
             apply_blacklist
         fi
 
