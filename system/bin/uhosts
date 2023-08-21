@@ -268,12 +268,20 @@ restore_default () {
     spinner $pid "Reverting back to default hosts"
     echo -e "127.0.0.1\tlocalhost" > $HOSTSFILE
     echo -e "::1\t\tip6-localhost" >> $HOSTSFILE
-    set_blacklist_status "false" & pid=$!
-    spinner $pid "Disabling blacklist"
-    wait $pid
-    set_whitelist_status "false" & pid=$!
-    spinner $pid "Disabling whitelist"
-    wait $pid
+    if [ `get_blacklist_status` = true ]
+    then
+        set_blacklist_status "false" & pid=$!
+        spinner $pid "Disabling blacklist"
+        wait $pid
+    fi
+
+    if [ `get_whitelist_status` = true ]
+    then
+        set_whitelist_status "false" & pid=$!
+        spinner $pid "Disabling whitelist"
+        wait $pid
+    fi
+
     echo -e "${G}[+] Done$N"
     sleep 1
 }
