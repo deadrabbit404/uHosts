@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.3.0] - 2023-08-21
+
+## Added
+
+- Blacklisting and whitelisting domains
+- Backup and restore options
+
 ## [v0.2.1] - 2023-08-08
 
 ### Fixed
