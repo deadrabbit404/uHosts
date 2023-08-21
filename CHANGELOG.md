@@ -2,7 +2,7 @@
 
 ## [v0.3.0] - 2023-08-21
 
-## Added
+### Added
 
 - Blacklisting and whitelisting domains
 - Backup and restore options
