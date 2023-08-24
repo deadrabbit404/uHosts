@@ -1,6 +1,9 @@
 # uHosts
 Block annoying ads, trackers and malware on your Android device
 
+[![Release version](https://img.shields.io/github/release/deadrabbit404/uHosts.svg?style=for-the-badge&logo=github&color=FFD242&logoColor=D9E0EE&labelColor=232323)]()
+[![Downloads](https://img.shields.io/github/downloads/deadrabbit404/uHosts/total.svg?style=for-the-badge&color=ABE15B&labelColor=232323)]() 
+
 ![screenshot](./screenshot-v0.3.PNG)
 
 ### Description
